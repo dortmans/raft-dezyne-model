@@ -1,0 +1,34 @@
+/*
+ * Raft StateMachine
+ * 
+ * Executes logged commands
+ * 
+ * author: Eric Dortmans (e.dortmans@fontys.nl)
+ */
+ 
+import Network.dzn;
+ 
+interface IStateMachine
+{
+	in void start();
+	in void commit();
+	behaviour
+	{
+		on start: {}
+		on commit: {}
+	}
+}
+
+component StateMachine
+{
+	
+	provides IStateMachine ctrl;
+	requires INetwork network;
+
+	behaviour
+	{
+		on ctrl.start(): {}
+		on ctrl.commit(): {}
+		on network.receive(): {}
+	}
+}

@@ -1,0 +1,34 @@
+/*
+ * Server, implementing the Raft consensus protocol
+ * 
+ * The Raft Consensus Algorithm
+ * https://raft.github.io/
+ * 
+ * author: Eric Dortmans (e.dortmans@fontys.nl)
+ */
+
+import ConsensusModule.dzn;
+import Log.dzn;
+import StateMachine.dzn;
+import Network.dzn;
+
+component Server
+{
+  provides IServer ctrl; 
+  requires INetwork network;
+ 
+  system
+  {// Each server has a state machine and a log
+  	ConsensusModule consensus;
+  	Log log;
+    StateMachine state;
+    
+    ctrl <=> consensus.ctrl;
+    consensus.state <=> state.ctrl;
+    consensus.log <=> log.ctrl;
+        
+    state.network <=> network;
+    //log.blabla <=> blabla;
+  }
+}
+ 

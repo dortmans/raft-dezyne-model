@@ -1,0 +1,34 @@
+/*
+ * Raft Consensus Module
+ * 
+ * Implements consensus algorithm to get commitment for logged commands
+ * 
+ * author: Eric Dortmans (e.dortmans@fontys.nl)
+ */
+
+import StateMachine.dzn;
+import Log.dzn;
+
+interface IServer
+{
+	in void request();
+	behaviour
+	{
+		enum State {Follower, Candidate, Leader};
+		on request: { }
+	}
+}
+
+component ConsensusModule
+{
+	
+	provides IServer ctrl;
+	requires IStateMachine state;
+	requires ILog log;
+
+	behaviour
+	{
+		on ctrl.request(): {}
+	}
+}
+

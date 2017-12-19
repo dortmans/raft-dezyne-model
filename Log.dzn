@@ -1,0 +1,31 @@
+/*
+ * Raft Command Log
+ * 
+ * Log of commands to agree upon with other servers
+ * 
+ * author: Eric Dortmans (e.dortmans@fontys.nl)
+ */
+ 
+interface ILog
+{
+	in void put();
+	in void get();
+	behaviour
+	{
+		on put: { }
+		on get: { }
+	}
+}
+
+component Log
+{
+	
+	provides ILog ctrl;
+
+	behaviour
+	{
+		on ctrl.put(): {}
+		on ctrl.get(): {}
+	}
+}
+
