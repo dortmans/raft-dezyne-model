@@ -8,11 +8,11 @@
  
 interface ILog
 {
-	in void put();
+	in void append();
 	in void get();
 	behaviour
 	{
-		on put: { }
+		on append: { }
 		on get: { }
 	}
 }
@@ -24,7 +24,7 @@ component Log
 
 	behaviour
 	{
-		on ctrl.put(): {}
+		on ctrl.append(): {}
 		on ctrl.get(): {}
 	}
 }

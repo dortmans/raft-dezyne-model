@@ -5,17 +5,17 @@
  * 
  * author: Eric Dortmans (e.dortmans@fontys.nl)
  */
- 
-import Network.dzn;
+
+import Types.dzn;
  
 interface IStateMachine
 {
-	in void start();
-	in void commit();
+	in void init();
+	in void apply(string command);
 	behaviour
 	{
-		on start: {}
-		on commit: {}
+		on init: {}
+		on apply: {}
 	}
 }
 
@@ -23,12 +23,10 @@ component StateMachine
 {
 	
 	provides IStateMachine ctrl;
-	requires INetwork network;
 
 	behaviour
 	{
-		on ctrl.start(): {}
-		on ctrl.commit(): {}
-		on network.receive(): {}
+		on ctrl.init(): {}
+		on ctrl.apply(command): {}
 	}
 }

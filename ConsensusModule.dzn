@@ -6,16 +6,27 @@
  * author: Eric Dortmans (e.dortmans@fontys.nl)
  */
 
+import Types.dzn;
 import StateMachine.dzn;
 import Log.dzn;
+import RPC.dzn;
+
 
 interface IServer
 {
-	in void request();
+	in void clientRequest(string command);
+	out void clientRequestSuccess();
+	out void clientRequestFailed(in string leaderId);
+	in void getLeaderId(out string leaderId);
+
 	behaviour
 	{
-		enum State {Follower, Candidate, Leader};
-		on request: { }
+		// on clientRequest: { clientRequestSuccess; } 
+		// on clientRequest: { clientRequestFailed; } 
+		on clientRequest: { }
+		on optional: { clientRequestSuccess; }
+		on optional: { clientRequestFailed; }
+		on getLeaderId: { }
 	}
 }
 
@@ -23,12 +34,62 @@ component ConsensusModule
 {
 	
 	provides IServer ctrl;
-	requires IStateMachine state;
+	requires IStateMachine statemachine;
 	requires ILog log;
+	requires IServerClientRPC rpcclient;
+	//requires IServerServerRPC rpcserver;
 
 	behaviour
 	{
-		on ctrl.request(): {}
+		string leaderId = $"0.0.0.0"$;
+		int currentTerm = $0$;
+		number servers = 3;
+		number majority = 2;
+		number votes = 1;
+		
+		enum State {Follower, Candidate, Leader};
+		State state = State.Candidate;
+		
+		on ctrl.getLeaderId(leaderId): {}
+		[state.Follower]{
+			on ctrl.clientRequest(command): {
+				ctrl.clientRequestFailed(leaderId); // only respond to requests from other servers
+			}
+			on rpcclient.RequestVoteGranted(currentTerm): {}
+			on rpcclient.RequestVoteRefused(currentTerm): {}
+			on rpcclient.AppendEntriesSuccess(currentTerm): {}
+			on rpcclient.AppendEntriesFailed(currentTerm): {}
+		}
+		[state.Candidate]{
+			on ctrl.clientRequest(command): {
+				ctrl.clientRequestFailed(leaderId); // only respond to requests from other servers
+			}
+			on rpcclient.RequestVoteGranted(currentTerm): {
+				votes = votes + 1;
+				if (votes >= majority) {
+					state = State.Leader;
+				}
+			}
+			on rpcclient.RequestVoteRefused(currentTerm): {}
+			on rpcclient.AppendEntriesSuccess(currentTerm): {}
+			on rpcclient.AppendEntriesFailed(currentTerm): {}
+		}
+		[state.Leader]{
+			on ctrl.clientRequest(command): {
+				/* 
+				 * Log the command and try to replicate and commit it
+				 */			
+			}
+			on rpcclient.RequestVoteGranted(currentTerm): {}
+			on rpcclient.RequestVoteRefused(currentTerm): {}
+			on rpcclient.AppendEntriesSuccess(currentTerm): {
+				ctrl.clientRequestSuccess(); // command replicated and committed
+			}
+			on rpcclient.AppendEntriesFailed(currentTerm): {
+			
+			}
+
+		}
 	}
 }
 

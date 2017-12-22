@@ -10,25 +10,25 @@
 import ConsensusModule.dzn;
 import Log.dzn;
 import StateMachine.dzn;
-import Network.dzn;
+import RPC.dzn;
 
 component Server
 {
   provides IServer ctrl; 
-  requires INetwork network;
+  requires IRPC rpc;
  
   system
   {// Each server has a state machine and a log
   	ConsensusModule consensus;
   	Log log;
-    StateMachine state;
+    StateMachine statemachine;
     
     ctrl <=> consensus.ctrl;
-    consensus.state <=> state.ctrl;
+    consensus.statemachine <=> statemachine.ctrl;
     consensus.log <=> log.ctrl;
         
-    state.network <=> network;
-    //log.blabla <=> blabla;
+    consensus.rpc <=> rpc;
+
   }
 }
  
