@@ -7,89 +7,255 @@
  */
 
 import Types.dzn;
-import StateMachine.dzn;
-import Log.dzn;
-import RPC.dzn;
-
-
-interface IServer
-{
-	in void clientRequest(string command);
-	out void clientRequestSuccess();
-	out void clientRequestFailed(in string leaderId);
-	in void getLeaderId(out string leaderId);
-
-	behaviour
-	{
-		// on clientRequest: { clientRequestSuccess; } 
-		// on clientRequest: { clientRequestFailed; } 
-		on clientRequest: { }
-		on optional: { clientRequestSuccess; }
-		on optional: { clientRequestFailed; }
-		on getLeaderId: { }
-	}
-}
+import Server.dzn;
+import Timer.dzn;
+import Rules.dzn;
+import Config.dzn;
+import Rpc.dzn;
 
 component ConsensusModule
 {
-	
 	provides IServer ctrl;
-	requires IStateMachine statemachine;
-	requires ILog log;
-	requires IServerClientRPC rpcclient;
-	//requires IServerServerRPC rpcserver;
+	requires ITimer electionTimer;
+	requires ITimer heartbeatTimer;
+	requires IRules rules;
+	requires IConfig config;
+	requires IRpcClient rpcclient;
+  	requires IRpcServer rpcserver;
 
 	behaviour
-	{
-		string leaderId = $"0.0.0.0"$;
-		int currentTerm = $0$;
-		number servers = 3;
-		number majority = 2;
-		number votes = 1;
+	{		
+		xint electionTime;
+		xint heartbeatTime;
 		
-		enum State {Follower, Candidate, Leader};
-		State state = State.Candidate;
-		
-		on ctrl.getLeaderId(leaderId): {}
-		[state.Follower]{
-			on ctrl.clientRequest(command): {
-				ctrl.clientRequestFailed(leaderId); // only respond to requests from other servers
+		enum State {OFFLINE, ONLINE};
+		State state = State.OFFLINE;
+		enum RaftState {FOLLOWER, CANDIDATE, LEADER, UNDEFINED};
+		RaftState raftState = RaftState.UNDEFINED;
+
+		void initPeers()
+    	{
+      		string peerId;
+      		bool more = config.nextPeer(peerId);
+      		if (more) {
+      			rules.addPeer(peerId);
+        		initPeers(); // tail recursion      	
+      		}
+    	}
+
+    	void sendRequestVoteMessages()
+    	/*
+    	 * Send RequestVote messages to all peer servers
+    	 */
+    	{
+    		string peerId;
+    		string candidateId;
+    		xint term;
+    		xint lastLogIndex;
+    		xint lastLogTerm;
+      		bool more = rules.nextRequestVote(peerId, candidateId, term, lastLogIndex, lastLogTerm);
+      		if (more) {
+      			rpcclient.RequestVote(peerId, candidateId, term, lastLogIndex, lastLogTerm);
+        		sendRequestVoteMessages(); // tail recursion      	
+      		}
+    	}
+    	
+    	void sendAppendEntriesMessages()
+    	/*
+    	 * Send AppendEntries messages to all peer servers
+    	 */
+    	{
+    		string peerId;
+    		string leaderId;
+    		xint term;
+    		xint prevLogIndex;
+    		xint prevLogTerm;
+    		string entries;
+    		xint leaderCommit;
+      		bool more = rules.nextAppendEntries(peerId, leaderId, term, prevLogIndex, prevLogTerm, entries, leaderCommit);
+      		if (more) {
+      			rpcclient.AppendEntries(peerId, leaderId, term, prevLogIndex, prevLogTerm, entries, leaderCommit);
+        		sendRequestVoteMessages(); // tail recursion      	
+      		}
+    	}
+
+		[state.OFFLINE]{
+			/*
+			 * The server is offline and does not respond to any  messages, except OnLine().
+			 */
+			on ctrl.OnLine(): {
+				string myId;
+				state = State.ONLINE;
+				config.myId(myId);
+				rules.init(myId);
+				initPeers();
+				raftState = RaftState.FOLLOWER;
+				rules.getElectionTime(electionTime);
+				electionTimer.start(electionTime);
 			}
-			on rpcclient.RequestVoteGranted(currentTerm): {}
-			on rpcclient.RequestVoteRefused(currentTerm): {}
-			on rpcclient.AppendEntriesSuccess(currentTerm): {}
-			on rpcclient.AppendEntriesFailed(currentTerm): {}
+			on ctrl.OffLine(): {}
+			on rpcserver.ClientRequest(clientId, command): {}
+			on rpcserver.RequestVote(candidateId, term, lastLogIndex, lastLogTerm): {}
+			on rpcserver.AppendEntries(leaderId, term, prevLogIndex, prevLogTerm, entries, leaderCommit): {}
+			on rpcclient.AppendEntriesRefused(peerId, term): {}
+			on rpcclient.AppendEntriesSuccess(peerId, term): {}
+			on rpcclient.RequestVoteDenied(peerId, term): {}
+			on rpcclient.RequestVoteGranted(peerId, term): {}
+			on rules.AppendEntriesRefused(leaderId, currentTerm): {}
+			on rules.AppendEntriesSucces(leaderId, currentTerm): {}
+			on rules.leadershipLost(): {}
+			on rules.leadershipWon(): {}
+			on rules.RequestVoteDenied(candidateId, currentTerm): {}
+			on rules.RequestVoteGranted(candidateId, currentTerm): {}
+			on rules.ClientRequestSuccess(clientId, result): {}
+			on rules.ClientRequestFailed(clientId, leaderId): {}
+			on electionTimer.timeout(): {}
+			on heartbeatTimer.timeout(): {}
 		}
-		[state.Candidate]{
-			on ctrl.clientRequest(command): {
-				ctrl.clientRequestFailed(leaderId); // only respond to requests from other servers
+		[state.ONLINE]{
+			/*
+			 * The server is online and behaving according the Raft protocol
+			 */
+			on ctrl.OnLine(): {}
+			on ctrl.OffLine(): {
+				electionTimer.cancel();
+				state = State.OFFLINE;
+				raftState = RaftState.UNDEFINED;
 			}
-			on rpcclient.RequestVoteGranted(currentTerm): {
-				votes = votes + 1;
-				if (votes >= majority) {
-					state = State.Leader;
-				}
+
+			on rules.AppendEntriesSucces(leaderId, currentTerm): {// Entries successfully logged
+				rpcserver.AppendEntriesSuccess(leaderId, currentTerm);
 			}
-			on rpcclient.RequestVoteRefused(currentTerm): {}
-			on rpcclient.AppendEntriesSuccess(currentTerm): {}
-			on rpcclient.AppendEntriesFailed(currentTerm): {}
-		}
-		[state.Leader]{
-			on ctrl.clientRequest(command): {
-				/* 
-				 * Log the command and try to replicate and commit it
+			on rules.AppendEntriesRefused(leaderId, currentTerm): {// Refused to append entries to log
+				rpcserver.AppendEntriesRefused(leaderId, currentTerm);
+			}
+			on rules.RequestVoteGranted(candidateId, currentTerm): {// Vote granted
+				rpcserver.RequestVoteGranted(candidateId, currentTerm);
+			}
+			on rules.RequestVoteDenied(candidateId, currentTerm): {// Vote denied
+				rpcserver.RequestVoteDenied(candidateId, currentTerm);
+			}
+			on rules.ClientRequestSuccess(clientId, result): {// Command successfully executed
+				rpcserver.ClientRequestSuccess(clientId, result);
+			}				
+			on rules.ClientRequestFailed(clientId, leaderId): {// Request could not be handled. Wrong server.
+				rpcserver.ClientRequestFailed(clientId, leaderId);
+			}
+
+			[raftState.FOLLOWER]{
+				/*
+				 * Passive behavior. Follow the Leader. Only respond to AppendEntries from Leader or RequestVote from Candidate.
 				 */			
+				on electionTimer.timeout(): {// Start the election process because there seems not to be a Leader yet
+					raftState = RaftState.CANDIDATE;
+					rules.getElectionTime(electionTime); 
+					electionTimer.start(electionTime);
+					rules.startElection();
+					sendRequestVoteMessages();
+				}
+				on rpcclient.AppendEntriesRefused(peerId, term): {}
+				on rpcclient.AppendEntriesSuccess(peerId, term): {}
+				on rpcclient.RequestVoteDenied(peerId, term): {}
+				on rpcclient.RequestVoteGranted(peerId, term): {}
+				on rpcserver.ClientRequest(clientId, command): {// Handle ClientRequest
+					rules.handleClientRequest(clientId, command);
+				}
+				on rpcserver.RequestVote(candidateId, term, lastLogIndex, lastLogTerm): {// Handle RequestVote
+					electionTimer.cancel();
+					rules.getElectionTime(electionTime); 
+					electionTimer.start(electionTime);
+					rules.handleRequestVote(candidateId, term, lastLogIndex, lastLogTerm);
+				}
+				on rpcserver.AppendEntries(leaderId, term, prevLogIndex, prevLogTerm, entries, leaderCommit): {// Handle AppendEntries
+					electionTimer.cancel();
+					rules.getElectionTime(electionTime); 
+					electionTimer.start(electionTime);
+					rules.handleAppendEntries(leaderId, term, prevLogIndex, prevLogTerm, entries, leaderCommit);
+				}
+				on rules.leadershipLost(): {}
+				on rules.leadershipWon(): {}
+				on heartbeatTimer.timeout(): {}
 			}
-			on rpcclient.RequestVoteGranted(currentTerm): {}
-			on rpcclient.RequestVoteRefused(currentTerm): {}
-			on rpcclient.AppendEntriesSuccess(currentTerm): {
-				ctrl.clientRequestSuccess(); // command replicated and committed
+			[raftState.CANDIDATE]{
+				/*
+				 * Actively trying to get elected as Leader
+				 */
+				on electionTimer.timeout(): {// Restart the election process. Neither me nor one of my peers has been elected.
+					rules.getElectionTime(electionTime); 
+					electionTimer.start(electionTime);
+					rules.startElection();
+					sendRequestVoteMessages();
+				}
+				on rpcclient.AppendEntriesRefused(peerId, term): {}
+				on rpcclient.AppendEntriesSuccess(peerId, term): {}
+				on rpcclient.RequestVoteDenied(peerId, term): {
+					rules.handleRequestVoteDenied(peerId, term);
+				}
+				on rpcclient.RequestVoteGranted(peerId, term): {
+					rules.handleRequestVoteGranted(peerId, term);
+				}
+				on rules.leadershipWon(): {// Did we became the Leader
+					raftState = RaftState.LEADER;
+					electionTimer.cancel();
+					rules.getHeartbeatTime(heartbeatTime);
+					heartbeatTimer.start(heartbeatTime);
+				}
+				on rpcserver.ClientRequest(clientId, command): {
+					rules.handleClientRequest(clientId, command); // probably refuse
+				}
+				on rpcserver.RequestVote(candidateId, term, lastLogIndex, lastLogTerm): {
+					rules.handleRequestVote(candidateId, term, lastLogIndex, lastLogTerm); // Is its term newer then mine?
+				}
+				on rpcserver.AppendEntries(leaderId, term, prevLogIndex, prevLogTerm, entries, leaderCommit): {
+					rules.handleAppendEntries(leaderId, term, prevLogIndex, prevLogTerm, entries, leaderCommit); // Is its term newer then mine?
+				}
+				on rules.leadershipLost(): {// One of my peers became Leader
+					raftState = RaftState.FOLLOWER;
+					electionTimer.cancel();
+					rules.getElectionTime(electionTime); 
+					electionTimer.start(electionTime);
+				}
+				on heartbeatTimer.timeout(): {}
 			}
-			on rpcclient.AppendEntriesFailed(currentTerm): {
-			
+			[raftState.LEADER]{
+				/*
+				 * Be a good leader...
+				 * - Respond to requests from Clients
+				 * - Send AppendEntries to Followers in order to replicate log entries and as heartbeat to maintain leadership
+				 */
+				on heartbeatTimer.timeout():{
+					rules.getHeartbeatTime(heartbeatTime);
+					heartbeatTimer.start(heartbeatTime);
+					rules.startReplication();
+					sendAppendEntriesMessages();				
+				}
+				on rpcclient.AppendEntriesRefused(peerId, term): {
+					rules.handleAppendEntriesRefused(peerId, term);
+				}
+				on rpcclient.AppendEntriesSuccess(peerId, term): {
+					rules.handleAppendEntriesSuccess(peerId, term);
+				}
+				on rpcclient.RequestVoteDenied(peerId, term): {}
+				on rpcclient.RequestVoteGranted(peerId, term): {}			
+				on rules.leadershipWon(): {}
+				on rpcserver.ClientRequest(clientId, command): {
+					rules.handleClientRequest(clientId, command);
+				}
+				on rpcserver.RequestVote(candidateId, term, lastLogIndex, lastLogTerm): {
+					rules.handleRequestVote(candidateId, term, lastLogIndex, lastLogTerm); // Is its term newer then mine?
+				}
+				on rpcserver.AppendEntries(leaderId, term, prevLogIndex, prevLogTerm, entries, leaderCommit): {
+					rules.handleAppendEntries(leaderId, term, prevLogIndex, prevLogTerm, entries, leaderCommit); // Is its term newer then mine?
+				}
+				on rules.leadershipLost(): {// A peer with a newer term is the real Leader
+					raftState = RaftState.FOLLOWER;
+					rules.getElectionTime(electionTime); 
+					electionTimer.start(electionTime);
+				}
+				on electionTimer.timeout(): {}
 			}
 
 		}
 	}
-}
 
+}

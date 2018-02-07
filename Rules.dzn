@@ -1,0 +1,228 @@
+/*
+ * Raft Rules
+ * 
+ * This component implements the Raft rules for leader election, log replication and command execution.
+ * 
+ * author: Eric Dortmans (e.dortmans@fontys.nl)
+ */
+
+import Types.dzn;
+
+interface IRules
+{
+	/* Initialize all parameters */
+	in void init(in string myId);		// initialize this server
+	in void addPeer(in string peerId); 	// add peerId of peer server
+	
+	/* 
+	 * Handle RequestVote messages received from Candidate
+	 * 
+	 * 1. Deny vote if term < currentTerm
+	 * 2. If votedFor is null or candidateId, and candidate's log is at least as up-to-date as receivers's log, grant vote
+	 * 
+	 */
+	in void handleRequestVote(
+		in string candidateId, 			// candidate requesting vote
+		in xint term, 					// candidate's term
+		in xint lastLogIndex, 			// index of candidate's last log entry
+		in xint lastLogTerm				// term of candidate's last log entry
+	);
+	out void RequestVoteGranted(		// vote granted to candidate
+		in string candidateId, 
+		in xint currentTerm
+	);
+	out void RequestVoteDenied(			// vote granted to candidate
+		in string candidateId, 
+		in xint currentTerm
+	);
+		
+	/* 
+	 * Handle AppendEntries messages received from Leader
+	 * 
+	 * 1. Refuse if term < currentterm
+	 * 2. Refuse if log does not contain an entry at prevLogIndex whose term matches prevLogTerm
+	 * 3. If an existing log entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it.
+	 * 4. Append any new entries not already in the log
+	 * 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last entry)
+	 * 
+	 */
+	in void handleAppendEntries(
+		in string leaderId, 			// so follower can redirect clients		
+		in xint term, 					// leader's term
+		in xint prevLogIndex,			// index of log entry immediately preceding new ones
+		in xint prevLogTerm, 			// term of prevLogIndex entry
+		in string entries,				// log entries to store (empty for heartbeat)
+		in xint leaderCommit 			// leader's commitIndex
+	);
+	out void AppendEntriesSucces(		// vote granted to candidate
+		in string leaderId, 
+		in xint currentTerm
+	);
+	out void AppendEntriesRefused(		// vote granted to candidate
+		in string leaderId, 
+		in xint currentTerm
+	);
+	
+	/* Start the process to become elected as Leader */
+	in void startElection();
+	in void getElectionTime(out xint electionTime); // randomly chosen from a fixed interval (e.g 150-300 msec)
+	
+	/* Generate RequestVote messages to send as a Candidate to peer servers */
+	in bool nextRequestVote(			// next RequestVote message to send
+		out string peerId,				// peer to send this message to
+		out string candidateId, 		// candidate requesting vote
+		out xint currentTerm, 			// candidate's term
+		out xint lastLogIndex, 			// index of candidate's last log entry
+		out xint lastLogTerm			// term of candidate's last log entry
+	);
+
+	/* Handle responses from peers to RequestVote messages */
+	in void handleRequestVoteGranted(
+		in string peerId,				// peer that granted its vote to candidate
+		in xint term					// peer's term
+	);
+	in void handleRequestVoteDenied(
+		in string peerId,				// peer that denied its vote to candidate
+		in xint term					// peer's term
+	);
+
+	/* Winning or loosing Leadership */
+	out void leadershipWon();			// majority of votes was reached
+	out void leadershipLost();			// term received that was newer than our currentTerm
+
+	/* 
+	 * Handle requests from Client to execute command
+	 * 
+	 * 1. Failed if this server is not the leader (myId is not leaderId)
+	 * 2. Success when command has been successfully logged, replicated to a majority of servers, and executed.
+	 * 
+	 */
+	in void handleClientRequest(
+		in string clientId,				// Client that sent the request
+		in string command				// command to apply to StateMachine
+	);
+	out void ClientRequestSuccess(	
+		in string clientId,	
+		in string result				// result of command execution
+	);
+	out void ClientRequestFailed(	
+		in string clientId,	
+		in string leaderId 				// redirect to leader	
+	);
+	
+	/* Start the replication process as Leader */
+	in void startReplication();			// start replication of log entries
+	in void getHeartbeatTime(out xint heartbeatTime); // fixed time period, much smaller then electionTime
+
+	/* Generate AppendEntries messages to send as a Leader to peer servers */
+	in bool nextAppendEntries(			// next AppendEntries message to send; false if done
+		out string peerId,				// peer to send this message to
+		out string leaderId, 			// so follower can redirect clients		
+		out xint currentTerm, 			// leader's term
+		out xint prevLogIndex,			// index of log entry immediately preceding new ones
+		out xint prevLogTerm, 			// term of prevLogIndex entry
+		out string entries,				// log entries to store (empty for heartbeat)
+		out xint leaderCommit 			// leader's commitIndex
+	);
+
+	/* Handle responses from peers to AppendEntries messages */
+	in void handleAppendEntriesSuccess(
+		in string peerId,				// peer that successfully appended entries to its log
+		in xint term					// peer's term
+	);
+	in void handleAppendEntriesRefused(
+		in string peerId,				// peer that refused to append the entries to its log
+		in xint term					// peer's term
+	);
+	
+	
+	behaviour
+	{
+		on init: {}
+		on addPeer: {}
+		
+		/* 
+		 * Follower rules
+		 */
+		
+		on getElectionTime: {}
+		
+		on handleRequestVote: {}	
+		on inevitable: {RequestVoteGranted;}
+		on inevitable: {RequestVoteDenied;}
+		
+		on handleAppendEntries: {}
+		on inevitable: {AppendEntriesSucces;}
+		on inevitable: {AppendEntriesRefused;}
+		
+		/* 
+		 * Candidate rules 
+		 */
+		
+		on startElection: {}
+		on nextRequestVote: {reply(false);}
+		on nextRequestVote: {reply(true);}
+		on handleRequestVoteGranted: {}
+		on handleRequestVoteDenied: {}
+
+		/* 
+		 * Leader rules 
+		 */
+		
+		on inevitable: {leadershipWon;}
+		on inevitable: {leadershipLost;}
+	
+		on handleClientRequest: {}
+		on inevitable: {ClientRequestSuccess;}
+		on inevitable: {ClientRequestFailed;}
+		
+		on getHeartbeatTime: {}
+		on startReplication: {}	
+		on nextAppendEntries: {reply(false);}
+		on nextAppendEntries: {reply(true);}
+		on handleAppendEntriesSuccess: {}
+		on handleAppendEntriesRefused: {}	
+	}
+}
+
+component Rules
+/*
+ * Handwritten module
+ */
+{
+	provides IRules ctrl;
+
+	/*
+	 * All Servers:
+	 * - If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine
+	 * - If RPC request or response contains term T > currentTerm: set currentTerm = T, convert to follower
+	 * 
+	 * Followers:
+	 * - Respond to RPCs from candidates and leaders
+	 * - If election timeout elapses without receiving AppendEntries RPC from current leader or granting vote to candidate: convert to candidate
+	 * 
+	 * Candidates:
+	 * - On conversion to candidate, start election:
+	 * - Increment currentTerm
+	 * - Vote for self
+	 * - Reset election timer
+	 * - Send RequestVote RPCs to all other servers
+	 * - If votes received from majority of servers: become leader
+	 * - If AppendEntries RPC received from new leader: convert to follower
+	 * - If election timeout elapses: start new election
+	 * 
+	 * Leaders:
+	 * - Upon election: send initial empty AppendEntries RPCs (heartbeat) to each server; repeat during idle periods to prevent election timeouts
+	 * - If command received from client: append entry to local log, respond after entry applied to state machine
+	 * - If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex
+	 * - If successful: update nextIndex and matchIndex for follower
+	 * - If AppendEntries fails because of log inconsistency: decrement nextIndex and retry
+	 * - If there exists an N such that N > commitIndex, a majority of matchIndex[i] >= N, and log[N].term == currentTerm: set commitIndex = N.
+	 * 
+	 * Reference: 
+	 * - Diego Ongaro and John Ousterhout. 2014. In search of an understandable consensus algorithm. 
+	 *   In Proceedings of the 2014 USENIX conference on USENIX Annual Technical Conference (USENIX ATC'14), 
+	 *   Garth Gibson and Nickolai Zeldovich (Eds.). USENIX Association, Berkeley, CA, USA, 305-320.
+	 */
+
+}

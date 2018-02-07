@@ -1,0 +1,136 @@
+/*
+ * RPC
+ * 
+ * Raft RPC client and server interfaces
+ * 
+ * author: Eric Dortmans (e.dortmans@fontys.nl)
+ */
+
+import Types.dzn;
+
+interface IRpcClient
+/* 
+ * outgoing RPC requests
+ */
+{
+	in void RequestVote(			// Initiated by candidates during elections
+		in string peerId,			// peer to send this message to
+		in string candidateId, 		// candidate requesting vote
+		in xint currentTerm, 		// candidate's term
+		in xint lastLogIndex, 		// index of candidate's last log entry
+		in xint lastLogTerm			// term of candidate's last log entry
+	);
+	
+	out void RequestVoteGranted(
+		in string peerId,
+		in xint term	
+	);
+	
+	out void RequestVoteDenied(	
+		in string peerId,
+		in xint term
+	);	
+	
+	in void AppendEntries(			// Initiated by leaders to replicate log entries and to provide a form of heartbeat
+		in string peerId,			// peer to send this message to
+		in string leaderId, 		// leader's Id
+		in xint currentTerm, 		// leader's term
+		in xint prevLogIndex,		// index of log entry immediately preceding new ones
+		in xint prevLogTerm, 		// term of prevLogIndex entry
+		in string entries,			// log entry/entries to store; empty for heartbeat
+		in xint leaderCommit 		// leader's commitIndex
+	);
+	
+	out void AppendEntriesSuccess(
+		in string peerId,
+		in xint term
+	);
+	out void AppendEntriesRefused(
+		in string peerId,
+		in xint term
+	);
+
+		
+	behaviour
+	{
+		on RequestVote: {}
+		on inevitable: {RequestVoteGranted;}
+		on inevitable: {RequestVoteDenied;}
+		
+		on AppendEntries: {}
+		on inevitable: {AppendEntriesSuccess;}
+		on inevitable: {AppendEntriesRefused;}
+	}
+}
+
+interface IRpcServer
+/* 
+ * incoming RPC requests
+ */
+{
+	out void RequestVote(			// Initiated by candidates during elections
+		in string candidateId, 		// candidate requesting vote
+		in xint term, 				// candidate's term
+		in xint lastLogIndex, 		// index of candidate's last log entry
+		in xint lastLogTerm			// term of candidate's last log entry
+	);
+	
+	in void RequestVoteGranted(
+		in string candidateId,
+		in xint currentTerm	
+	);
+	in void RequestVoteDenied(
+		in string candidateId,
+		in xint currentTerm
+	);	
+	
+	out void AppendEntries(			// Initiated by leaders to replicate log entries and to provide a form of heartbeat
+		in string leaderId, 		// leader's Id
+		in xint term, 				// leader's term
+		in xint prevLogIndex,		// index of log entry immediately preceding new ones
+		in xint prevLogTerm, 		// term of prevLogIndex entry
+		in string entries,			// log entries to store (empty for heartbeat)
+		in xint leaderCommit 		// leader's commitIndex
+	);
+	
+	in void AppendEntriesSuccess(
+		in string leaderId,
+		in xint currentTerm
+	);
+	in void AppendEntriesRefused(
+		in string leaderId,
+		in xint currentTerm
+	);
+
+	out void ClientRequest(			// Initiated by client that wants to have command executed by all servers
+		in string clientId,			// the client that submitted this request
+		in string command			// command to be logged and executed 
+	);
+	
+	in void ClientRequestSuccess(	
+		in string clientId,	
+		in string result			// result of successful command execution
+	);
+	in void ClientRequestFailed(	
+		in string clientId,	
+		in string leaderId 			// redirect to leader	
+	);
+		
+	behaviour
+	{
+		on inevitable: {RequestVote;}
+		on RequestVoteGranted: {}
+		on RequestVoteDenied: {}
+		
+		on inevitable: {AppendEntries;}
+		on AppendEntriesSuccess: {}
+		on AppendEntriesRefused: {}
+		
+		on inevitable: {ClientRequest;}
+		on ClientRequestSuccess: {}
+		on ClientRequestFailed: {}
+	}
+}
+
+
+

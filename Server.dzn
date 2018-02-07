@@ -7,28 +7,46 @@
  * author: Eric Dortmans (e.dortmans@fontys.nl)
  */
 
+import Types.dzn;
 import ConsensusModule.dzn;
-import Log.dzn;
-import StateMachine.dzn;
-import RPC.dzn;
+import Timer.dzn;
+import Rules.dzn;
+import Config.dzn;
+import Rpc.dzn;
+
+interface IServer
+{
+	in void OnLine();
+	in void OffLine();
+	
+	behaviour
+	{
+		on OnLine: {}
+		on OffLine: {}
+	}
+}
 
 component Server
 {
   provides IServer ctrl; 
-  requires IRPC rpc;
+  requires IRpcClient rpcclient;
+  requires IRpcServer rpcserver;
  
   system
-  {// Each server has a state machine and a log
+  {
   	ConsensusModule consensus;
-  	Log log;
-    StateMachine statemachine;
+  	Timer electionTimer;
+  	Timer heartbeatTimer;
+    Rules rules;
+    Config config;
     
     ctrl <=> consensus.ctrl;
-    consensus.statemachine <=> statemachine.ctrl;
-    consensus.log <=> log.ctrl;
-        
-    consensus.rpc <=> rpc;
-
+    consensus.electionTimer <=> electionTimer.ctrl;
+    consensus.heartbeatTimer <=> heartbeatTimer.ctrl;
+    consensus.rules <=> rules.ctrl;
+    consensus.config <=> config.ctrl;     
+    consensus.rpcclient <=> rpcclient;
+    consensus.rpcserver <=> rpcserver;
   }
 }
  

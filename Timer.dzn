@@ -1,0 +1,30 @@
+import Types.dzn;
+
+interface ITimer
+{
+  in void start(xint msec);
+  in void cancel();
+  out void timeout();
+
+  behaviour
+  {
+    bool is_armed = false;
+
+    on cancel: is_armed = false;
+
+    [!is_armed] on start: {
+    	is_armed = true;
+    }
+    [is_armed] {
+    	//on start: {}
+    	on start: illegal;
+    	on inevitable: {timeout; is_armed = false;}
+    }
+    
+  }
+}
+
+component Timer 
+{ // Handwritten
+	provides ITimer ctrl;
+}

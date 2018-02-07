@@ -1,0 +1,14 @@
+/*
+ * Defines
+ * 
+ * Definition of useful types
+ * 
+ * author: Eric Dortmans (e.dortmans@fontys.nl)
+ */
+
+subint number {0..9};
+ 
+extern xint $int$;
+extern string $std::string$;
+ 
+ 

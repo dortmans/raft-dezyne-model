@@ -1,0 +1,26 @@
+/*
+ * Config
+ * 
+ * Server configuration data
+ * 
+ * author: Eric Dortmans (e.dortmans@fontys.nl)
+ */
+
+import Types.dzn;
+
+interface IConfig
+{
+	in void myId(out string serverId);		// provides Id of this server
+	in bool nextPeer(out string serverId);	// provides Id of peer server
+	behaviour
+	{
+		on myId: {}
+		on nextPeer: {reply(true);}
+		on nextPeer: {reply(false);}
+	}
+}
+
+component Config
+{ // Handwritten
+	provides IConfig ctrl;
+}
