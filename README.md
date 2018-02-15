@@ -50,4 +50,23 @@ Raft basically needs just three kind of Remote Procedure Calls (RPC's):
 - RequestVote RPC: used candidates to collect votes to become leader
 - AppendEntries RPC: used by the leader to replicate log entries and as heartbeat to confirm its leadership
 
+References:
+
+Diego Ongaro and John Ousterhout. 2014. In search of an understandable consensus algorithm. 
+In Proceedings of the 2014 USENIX conference on USENIX Annual Technical Conference (USENIX ATC'14), 
+Garth Gibson and Nickolai Zeldovich (Eds.). USENIX Association, Berkeley, CA, USA, 305-320.
+https://raft.github.io/raft.pdf
+
+The Raft Consensus Algorithm
+https://raft.github.io/
+
+RAFT Explained
+http://container-solutions.com/raft-explained-part-1-the-consenus-problem/
+
+Raft pseudo-code
+https://github.com/ongardie/raft-pseudocode
+
+TLA+ specification for the Raft consensus algorithm
+https://github.com/ongardie/raft.tla
+
 

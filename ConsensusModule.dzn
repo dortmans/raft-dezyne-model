@@ -3,7 +3,7 @@
  * 
  * Implements consensus algorithm to get commitment for logged commands
  * 
- * author: Eric Dortmans (e.dortmans@fontys.nl)
+ * Author: Eric Dortmans (e.dortmans@fontys.nl)
  */
 
 import Types.dzn;

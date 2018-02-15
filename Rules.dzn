@@ -3,7 +3,21 @@
  * 
  * This component implements the Raft rules for leader election, log replication and command execution.
  * 
- * author: Eric Dortmans (e.dortmans@fontys.nl)
+ * Author: Eric Dortmans (e.dortmans@fontys.nl)
+ * 
+ * References:
+ * 
+ * Diego Ongaro and John Ousterhout. 2014. In search of an understandable consensus algorithm. 
+ * In Proceedings of the 2014 USENIX conference on USENIX Annual Technical Conference (USENIX ATC'14), 
+ * Garth Gibson and Nickolai Zeldovich (Eds.). USENIX Association, Berkeley, CA, USA, 305-320.
+ * https://raft.github.io/raft.pdf
+ * 
+ * Raft pseudo-code
+ * https://github.com/ongardie/raft-pseudocode
+ * 
+ * TLA+ specification for the Raft consensus algorithm
+ * https://github.com/ongardie/raft.tla
+ * 
  */
 
 import Types.dzn;
@@ -218,12 +232,6 @@ component Rules
 	 * - If successful: update nextIndex and matchIndex for follower
 	 * - If AppendEntries fails because of log inconsistency: decrement nextIndex and retry
 	 * - If there exists an N such that N > commitIndex, a majority of matchIndex[i] >= N, and log[N].term == currentTerm: set commitIndex = N.
-	 * 
-	 * Reference: 
-	 * Diego Ongaro and John Ousterhout. 2014. In search of an understandable consensus algorithm. 
-	 * In Proceedings of the 2014 USENIX conference on USENIX Annual Technical Conference (USENIX ATC'14), 
-	 * Garth Gibson and Nickolai Zeldovich (Eds.). USENIX Association, Berkeley, CA, USA, 305-320.
-	 * https://raft.github.io/raft.pdf
 	 * 
 	 */
 

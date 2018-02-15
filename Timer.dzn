@@ -1,3 +1,11 @@
+/*
+ * General Purpose Timer
+ * 
+ * Author: Eric Dortmans (e.dortmans@fontys.nl)
+ * 
+ * Based on Dezyne example code
+ */
+
 import Types.dzn;
 
 interface ITimer

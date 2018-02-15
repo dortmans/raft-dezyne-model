@@ -3,7 +3,7 @@
  * 
  * Server configuration data
  * 
- * author: Eric Dortmans (e.dortmans@fontys.nl)
+ * Author: Eric Dortmans (e.dortmans@fontys.nl)
  */
 
 import Types.dzn;

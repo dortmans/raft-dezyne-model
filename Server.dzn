@@ -4,7 +4,7 @@
  * The Raft Consensus Algorithm
  * https://raft.github.io/
  * 
- * author: Eric Dortmans (e.dortmans@fontys.nl)
+ * Author: Eric Dortmans (e.dortmans@fontys.nl)
  */
 
 import Types.dzn;
