@@ -1,4 +1,4 @@
-# raft-dezyne-model
+# Dezyne model of the Raft consensus algorithm
 
 This repository contains a [Dezyne](https://www.verum.com/dezyne/) model of the Raft consensus algorithm.
 
@@ -21,12 +21,12 @@ In case the leader fails automatically a new leader is elected.
 The algorithm takes care that in each term (virtual time period) there can only be one leader.
 The other servers in the cluster follow the leader's orders.
 
-2. Log replication:
+2. **Log replication**:
 The leader receives commands from clients, logs them and replicates them to the followers. 
 When a log entry is replicated to a majority of servers, it is supposed to be committed. 
 The command will then be executed and its result is returned to the client.
 
-3. Guarding Consistency:
+3. **Guarding Consistency**:
 The rules of the algorithm take care that commands are committed and executed by all servers in the same sequence they have been requested.
 If one of the servers has committed a log entry at a particular index, no other server can apply a different log entry for that index.
 	
@@ -52,21 +52,21 @@ Raft basically needs just three kind of Remote Procedure Calls (RPC's):
 
 References:
 
-Diego Ongaro and John Ousterhout. 2014. In search of an understandable consensus algorithm. 
+- Diego Ongaro and John Ousterhout. 2014. In search of an understandable consensus algorithm. 
 In Proceedings of the 2014 USENIX conference on USENIX Annual Technical Conference (USENIX ATC'14), 
 Garth Gibson and Nickolai Zeldovich (Eds.). USENIX Association, Berkeley, CA, USA, 305-320.
 https://raft.github.io/raft.pdf
 
-The Raft Consensus Algorithm
+- The Raft Consensus Algorithm
 https://raft.github.io/
 
-RAFT Explained
+- RAFT Explained
 http://container-solutions.com/raft-explained-part-1-the-consenus-problem/
 
-Raft pseudo-code
+- Raft pseudo-code
 https://github.com/ongardie/raft-pseudocode
 
-TLA+ specification for the Raft consensus algorithm
+- TLA+ specification for the Raft consensus algorithm
 https://github.com/ongardie/raft.tla
 
 
