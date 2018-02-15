@@ -220,9 +220,11 @@ component Rules
 	 * - If there exists an N such that N > commitIndex, a majority of matchIndex[i] >= N, and log[N].term == currentTerm: set commitIndex = N.
 	 * 
 	 * Reference: 
-	 * - Diego Ongaro and John Ousterhout. 2014. In search of an understandable consensus algorithm. 
-	 *   In Proceedings of the 2014 USENIX conference on USENIX Annual Technical Conference (USENIX ATC'14), 
-	 *   Garth Gibson and Nickolai Zeldovich (Eds.). USENIX Association, Berkeley, CA, USA, 305-320.
+	 * Diego Ongaro and John Ousterhout. 2014. In search of an understandable consensus algorithm. 
+	 * In Proceedings of the 2014 USENIX conference on USENIX Annual Technical Conference (USENIX ATC'14), 
+	 * Garth Gibson and Nickolai Zeldovich (Eds.). USENIX Association, Berkeley, CA, USA, 305-320.
+	 * https://raft.github.io/raft.pdf
+	 * 
 	 */
 
 }

@@ -29,9 +29,9 @@ component ConsensusModule
 		xint heartbeatTime;
 		
 		enum State {OFFLINE, ONLINE};
-		State state = State.OFFLINE;
 		enum RaftState {FOLLOWER, CANDIDATE, LEADER, UNDEFINED};
 		RaftState raftState = RaftState.UNDEFINED;
+		State state = State.OFFLINE;
 
 		void initPeers()
     	{
