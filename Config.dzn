@@ -11,12 +11,22 @@ import Types.dzn;
 interface IConfig
 {
 	in void myId(out string serverId);		// provides Id of this server
-	in bool nextPeer(out string serverId);	// provides Id of peer server
+	in number numPeers();
+	in bool nextPeer(out string serverId);	// provides Id of a peer server
 	behaviour
 	{
 		on myId: {}
-		on nextPeer: {reply(true);}
-		on nextPeer: {reply(false);}
+		number numberOfPeers = 3;
+		number peer = 0;
+		on numPeers: {reply(numberOfPeers);}
+		on nextPeer: {
+			if(peer < numberOfPeers){
+				peer = peer + 1;
+				reply(true);
+			} else {
+				reply(false);
+			}
+		}
 	}
 }
 

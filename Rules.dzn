@@ -152,8 +152,15 @@ interface IRules
 	
 	behaviour
 	{
+
+		number maxPeers = 9;
+		number numPeers = 0;
+		number peer = 0;
+		
 		on init: {}
-		on addPeer: {}
+		on addPeer: {
+			if(numPeers < maxPeers) {numPeers = numPeers + 1;}
+		}
 		
 		/* 
 		 * Follower rules
@@ -173,9 +180,19 @@ interface IRules
 		 * Candidate rules 
 		 */
 		
-		on startElection: {}
-		on nextRequestVote: {reply(false);}
-		on nextRequestVote: {reply(true);}
+		on startElection: {
+			peer = 0; 
+		}
+		//on nextRequestVote: {reply(false);}
+		//on nextRequestVote: {reply(true);}
+		on nextRequestVote: {
+			if(peer < numPeers){
+				peer = peer + 1;
+				reply(true);
+			} else {
+				reply(false);
+			}
+		}
 		on handleRequestVoteGranted: {}
 		on handleRequestVoteDenied: {}
 
@@ -191,9 +208,19 @@ interface IRules
 		on inevitable: {ClientRequestFailed;}
 		
 		on getHeartbeatTime: {}
-		on startReplication: {}	
-		on nextAppendEntries: {reply(false);}
-		on nextAppendEntries: {reply(true);}
+		on startReplication: {
+			peer = 0; 
+		}	
+		//on nextAppendEntries: {reply(false);}
+		//on nextAppendEntries: {reply(true);}
+		on nextAppendEntries: {
+			if(peer < numPeers){
+				peer = peer + 1;
+				reply(true);
+			} else {
+				reply(false);
+			}
+		}
 		on handleAppendEntriesSuccess: {}
 		on handleAppendEntriesRefused: {}	
 	}

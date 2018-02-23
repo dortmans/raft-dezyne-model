@@ -37,6 +37,7 @@ component ConsensusModule
 		void initPeers()
     	{
       		string peerId;
+      		number peers = config.numPeers();
       		bool more = config.nextPeer(peerId);
       		if (more) {
       			rules.addPeer(peerId);
@@ -195,11 +196,13 @@ component ConsensusModule
 				on rpcclient.RequestVoteGranted(peerId, term): {
 					rules.handleRequestVoteGranted(peerId, term);
 				}
-				on rules.leadershipWon(): {// Did we became the Leader
+				on rules.leadershipWon(): {// Did we become the Leader
 					raftState = RaftState.LEADER;
-					electionTimer.cancel();
+					electionTimer.cancel();	
 					rules.getHeartbeatTime(heartbeatTime);
 					heartbeatTimer.start(heartbeatTime);
+					rules.startReplication();
+					sendAppendEntriesMessages();
 				}
 				on rpcserver.ClientRequest(clientId, command): {
 					rules.handleClientRequest(clientId, command); // probably refuse
