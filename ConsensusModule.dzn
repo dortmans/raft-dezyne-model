@@ -25,6 +25,7 @@ component ConsensusModule
 
 	behaviour
 	{		
+		string myId;
 		xint electionTime;
 		xint heartbeatTime;
 		
@@ -84,11 +85,10 @@ component ConsensusModule
 			 * The server is offline and does not respond to any  messages, except OnLine().
 			 */
 			on ctrl.OnLine(): {
-				string myId;
-				state = State.ONLINE;
 				config.myId(myId);
 				rules.init(myId);
 				initPeers();
+				state = State.ONLINE;
 				raftState = RaftState.FOLLOWER;
 				rules.getElectionTime(electionTime);
 				electionTimer.start(electionTime);
@@ -119,6 +119,7 @@ component ConsensusModule
 			on ctrl.OnLine(): {}
 			on ctrl.OffLine(): {
 				electionTimer.cancel();
+				heartbeatTimer.cancel();
 				state = State.OFFLINE;
 				raftState = RaftState.UNDEFINED;
 			}
@@ -248,6 +249,7 @@ component ConsensusModule
 					rules.handleAppendEntries(leaderId, term, prevLogIndex, prevLogTerm, entries, leaderCommit); // Is its term newer then mine?
 				}
 				on rules.leadershipLost(): {// A peer with a newer term is the real Leader
+					heartbeatTimer.cancel();
 					raftState = RaftState.FOLLOWER;
 					rules.getElectionTime(electionTime); 
 					electionTimer.start(electionTime);
