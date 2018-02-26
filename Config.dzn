@@ -16,7 +16,7 @@ interface IConfig
 	behaviour
 	{
 		on myId: {}
-		number numberOfPeers = 3;
+		number numberOfPeers = 4; // must be an even number
 		number peer = 0;
 		on numPeers: {reply(numberOfPeers);}
 		on nextPeer: {
