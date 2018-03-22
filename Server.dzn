@@ -8,45 +8,34 @@
  */
 
 import Types.dzn;
+import ServerInterface.dzn;
 import ConsensusModule.dzn;
 import Timer.dzn;
 import Rules.dzn;
 import Config.dzn;
 import Rpc.dzn;
 
-interface IServer
-{
-	in void OnLine();
-	in void OffLine();
-	
-	behaviour
-	{
-		on OnLine: {}
-		on OffLine: {}
-	}
-}
-
 component Server
 {
-  provides IServer ctrl; 
-  requires IRpcClient rpcclient;
-  requires IRpcServer rpcserver;
- 
+  provides IServer ctrl;
+
   system
   {
-  	ConsensusModule consensus;
-  	Timer electionTimer;
+    ConsensusModule consensus;
+    Timer electionTimer;
   	Timer heartbeatTimer;
     Rules rules;
     Config config;
+    RpcClient rpcclient;
+    RpcServer rpcserver;
     
     ctrl <=> consensus.ctrl;
     consensus.electionTimer <=> electionTimer.ctrl;
     consensus.heartbeatTimer <=> heartbeatTimer.ctrl;
     consensus.rules <=> rules.ctrl;
-    consensus.config <=> config.ctrl;     
-    consensus.rpcclient <=> rpcclient;
-    consensus.rpcserver <=> rpcserver;
+    consensus.config <=> config.ctrl;
+    consensus.rpcclient <=> rpcclient.ctrl;
+    consensus.rpcserver <=> rpcserver.ctrl;
   }
 }
  

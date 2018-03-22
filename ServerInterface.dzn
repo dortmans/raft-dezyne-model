@@ -1,0 +1,11 @@
+interface IServer
+{
+	in void OnLine();
+	in void OffLine();
+	
+	behaviour
+	{
+		on OnLine: {}
+		on OffLine: {}
+	}
+}
