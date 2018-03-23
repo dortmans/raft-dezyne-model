@@ -50,6 +50,11 @@ Raft basically needs just three kind of Remote Procedure Calls (RPC's):
 - RequestVote RPC: used candidates to collect votes to become leader
 - AppendEntries RPC: used by the leader to replicate log entries and as heartbeat to confirm its leadership
 
+More information on our Dezyne model:
+
+The architecture of our model is described in our [architecture document](ARCHITECTURE.md).
+For more details on verification & validation of our model you are referred to our [tests document](TESTS.md)
+
 References:
 
 - Diego Ongaro and John Ousterhout. 2014. In search of an understandable consensus algorithm. 
